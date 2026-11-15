@@ -154,7 +154,8 @@ main, .nav, .footer { position: relative; z-index: 1; }
 
 /* video */
 .video { position: relative; max-width: 1060px; margin: 0 auto; border-radius: 22px; overflow: hidden; border: 1px solid var(--card-border); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .8); background: #050914; }
-.video video, .video__poster { display: block; width: 100%; aspect-ratio: 16 / 9; }
+.video video { display: block; width: 100%; aspect-ratio: 16 / 10; background: #050914; }
+.video__poster { display: block; width: 100%; aspect-ratio: 16 / 9; }
 .video__poster { position: relative; }
 .video__poster img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.55) saturate(.9); }
 .video__tag { position: absolute; left: 20px; top: 20px; padding: 7px 14px; font-size: 13px; font-weight: 600; border-radius: 999px; background: rgba(7, 13, 36, .7); border: 1px solid rgba(158, 209, 255, .3); color: var(--ice); }
