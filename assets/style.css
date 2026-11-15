@@ -123,12 +123,10 @@ main, .nav, .footer { position: relative; z-index: 1; }
 .mac__doc p.s { width: 70%; }
 .mac__doc p.xs { width: 45%; }
 
-/* snow drifts: soft rounded ends that hang slightly past the edge — no hard "wall" */
-.drift { position: absolute; fill: var(--snow); filter: drop-shadow(0 -1px 0 rgba(255,255,255,.9)) drop-shadow(0 3px 4px rgba(20, 40, 90, .25)); pointer-events: none; }
-.drift--window { left: -2.5%; width: 105%; height: 15%; bottom: calc(100% - 4px); }
-.drift--dock { left: -3%; width: 106%; height: 55%; bottom: calc(100% - 6px); }
-.drift--card { left: -1.5%; width: 103%; height: 34px; top: -26px; }
-
+/* snow caps: drawn by main.js to the exact size of each element — the snow sits on the top edge
+   and drapes down over the rounded corners, following their curve */
+.snowcap { position: absolute; left: 0; overflow: visible; fill: var(--snow); pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 -1px 0 rgba(255,255,255,.9)) drop-shadow(0 2px 3px rgba(20, 40, 90, .28)); }
 .mac__panel {
   position: absolute; right: 2.5%; top: 4.6%; width: 25%; height: auto;
   border-radius: 1.4cqw; filter: drop-shadow(0 2cqw 3cqw rgba(0, 0, 0, .5));
