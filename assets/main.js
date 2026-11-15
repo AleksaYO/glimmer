@@ -1,5 +1,15 @@
 // Glimmer site: mobile menu + gentle falling snow (page background and inside the Mac mockup)
 (function () {
+  // Проверка на своём компьютере: на localhost кнопки скачивания берут локальную копию установщика
+  // (папка downloads/ не публикуется), на опубликованном сайте — файл из GitHub Releases
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+    document.querySelectorAll('[data-download]').forEach(a => { a.href = 'downloads/Glimmer.dmg'; a.setAttribute('download', 'Glimmer.dmg'); });
+  }
+
+  // картинки и видео: без контекстного меню «Сохранить как…» и без перетаскивания в Finder
+  document.addEventListener('contextmenu', e => { if (e.target.closest('img, video, .mac, .panel__stage, .effect')) e.preventDefault(); });
+  document.addEventListener('dragstart', e => { if (e.target.closest('img, video')) e.preventDefault(); });
+
   // mobile menu
   const nav = document.querySelector('.nav');
   const toggle = document.getElementById('nav-toggle');
