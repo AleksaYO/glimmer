@@ -273,6 +273,12 @@ main, .nav, .footer { position: relative; z-index: 1; }
   .card { padding: 22px; }
 }
 
+@media (max-width: 400px) {
+  .nav__cta { display: none; }
+  .nav__toggle { margin-left: auto; }
+  .hero h1 { font-size: 38px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .btn, .effect img { transition: none; }
