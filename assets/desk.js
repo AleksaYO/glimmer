@@ -256,6 +256,7 @@
   screen.addEventListener('touchmove', e => { if (grab) e.preventDefault(); }, { passive: false });
   screen.addEventListener('pointermove', e => {
     const p = toV(e);
+    if (Math.hypot(p.x - ptr.x, p.y - ptr.y) > 0.5) ptr.t = clock;
     ptr.x = p.x; ptr.y = p.y; ptr.mouse = e.pointerType === 'mouse'; ptr.inside = true;
     if (grab) { touched(); return; }
     if (ptr.mouse) { const g = pick(p, true); screen.style.cursor = g ? 'grab' : ''; }
@@ -507,8 +508,14 @@
 
   // ---------- actions ----------
   const busy = () => !!(crew || plough);
-  function act(name, fromUser) {
+  function act(name, fromUser, fromPanel) {
     if (fromUser) { touched(); wake(true); }
+    if (effect !== 0) {
+      if (name === 'shake') { fxShake(); return; }
+      if (name === 'clear') { fxClear(); return; }
+      if (fromPanel) return;                     // in the app these buttons are greyed out outside of Snow
+      setEffect(0);
+    }
     if (name === 'gnomes' || name === 'plough') {
       if (busy()) { queued = name; return; }
       clearing = false;
@@ -532,10 +539,263 @@
   }
   document.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => {
     e.preventDefault();
-    act(el.dataset.act, true);
+    act(el.dataset.act, true, el.classList.contains('mac__act'));
     if (el.classList.contains('mac__act')) { el.classList.add('is-hit'); setTimeout(() => el.classList.remove('is-hit'), 260); }
     else if (window.matchMedia('(max-width: 900px)').matches) screen.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }));
+
+  // ---------- the other effects: rain, sakura, leaves, fireflies, starfall ----------
+  // Same numbers as in the app (WeatherScene: spawnDrops, spawnSettling, updateFireflies, spawnMeteor…),
+  // scaled to the mockup: SP — speeds, SZ — sizes. Rates are the app defaults (rate = 30).
+  const SP = 0.66, SZ = 0.85;
+  const FX_WALL = ['assets/img/wall-snow.jpg', 'assets/img/fx/wall-rain.jpg', 'assets/img/fx/wall-sakura.jpg',
+    'assets/img/fx/wall-autumn.jpg', 'assets/img/fx/wall-fireflies.jpg', 'assets/img/fx/wall-sky.jpg'];
+  const SAKURA = [rgb(1.00, 0.80, 0.87), rgb(1.00, 0.71, 0.80), rgb(0.98, 0.88, 0.92)];
+  const LEAVES = [rgb(0.89, 0.45, 0.13), rgb(0.78, 0.22, 0.12), rgb(0.93, 0.69, 0.16), rgb(0.55, 0.33, 0.14)];
+  let effect = 0, fxAcc = 0, wind = 0, nextFlash = 0, flash = null, nextMeteor = 0;
+  const drops = [], splashes = [], petals = [], flies = [], meteors = [], sparks = [];
+  const stack = { win: new Float32Array(0), dock: new Float32Array(0), floor: new Float32Array(0) };   // petals lying on each surface
+  const panelImg = screen.querySelector('.mac__panel img'), wallImg = screen.querySelector('.mac__wall');
+  const pick1 = a => a[Math.floor(Math.random() * a.length)];
+
+  function stackOf(name) {
+    const sf = S[name], n = sf.h.length;
+    if (stack[name].length !== n) stack[name] = new Float32Array(n);
+    return stack[name];
+  }
+  // top of the petal layer on a surface
+  function petalTop(sf, x) {
+    const st = stackOf(sf.name), i = clamp(Math.floor((x - sf.x0) / sf.cell), 0, st.length - 1);
+    return sf.y - st[i];
+  }
+  function addPetal(sf, x, amt) {
+    const st = stackOf(sf.name), i0 = Math.floor((x - sf.x0) / sf.cell);
+    for (let d = -1; d <= 1; d++) { const i = i0 + d; if (i >= 0 && i < st.length) st[i] = Math.min(sf === S.floor ? 9 : 6, st[i] + amt * (d ? 0.25 : 0.5)); }
+  }
+
+  function setEffect(e) {
+    if (e === effect) return;
+    effect = e;
+    // like clearAll() in the app: everything of the old effect disappears
+    for (const sf of ORDER) sf.h.fill(0);
+    grains.length = 0; debris.length = 0; puffs.length = 0;
+    balls.forEach(b => { b.dead = true; }); men.forEach(m => { m.dead = true; });
+    balls.length = 0; men.length = 0; crew = null; plough = null; queued = null; clearing = false;
+    if (grab && grab.type !== 'win') release();
+    drops.length = splashes.length = petals.length = flies.length = meteors.length = sparks.length = 0;
+    for (const k2 in stack) stack[k2].fill(0);
+    fxAcc = 0; nextFlash = clock + rnd(3, 8); flash = null; nextMeteor = clock + 0.5;
+    if (e === 0) { seed(S.win, 8, 2.5); seed(S.dock, 9, 2.5); seed(S.floor, 14, 4); for (const sf of ORDER) for (let i = 0; i < 6; i++) relax(sf); }
+    if (e === 4) for (let i = 0; i < 26; i++) addFly(true);
+    if (e === 2 || e === 3) {                       // the first petals are already on their way down
+      for (let i = 0; i < 70; i++) { spawnPetal(e === 2); const f = petals[petals.length - 1]; f.y = rnd(-10, VH * 0.85); f.vy = rnd(15, 30) * SP; }
+    }
+    panelImg.src = `assets/img/fx/panel-${e}.png`;
+    screen.classList.toggle('is-snow', e === 0);
+    // the wallpaper follows the effect, like "Match wallpaper to effect" in the app
+    const next = new Image();
+    next.onload = () => {
+      const fade = wallImg.cloneNode();
+      fade.src = next.src; fade.style.opacity = '0'; fade.style.transition = 'opacity .45s';
+      wallImg.after(fade);
+      requestAnimationFrame(() => requestAnimationFrame(() => { fade.style.opacity = '1'; }));
+      setTimeout(() => { wallImg.src = next.src; fade.remove(); }, 520);
+    };
+    next.src = FX_WALL[e];
+  }
+
+  function addFly(anywhere) {
+    const s2 = rnd(14, 22) * SZ;
+    flies.push({ x: rnd(10, VW - 10), y: rnd(40, VH - 30), vx: 0, vy: 0, size: s2, wander: rnd(0, 6.28), phase: rnd(0, 6.28),
+      pulse: rnd(1.2, 2.6), orbit: rnd(25, 110) * SP, a: anywhere ? 1 : 0 });
+  }
+
+  function spawnPetal(sak) {
+    const r = sak ? rnd(2.4, 3.6) : rnd(3.2, 4.8);
+    petals.push({ x: rnd(0, VW), y: -10, vx: rnd(-6, 6) * SP, vy: rnd(5, 15) * SP, rot: rnd(0, 6.28), vr: rnd(-3, 3),
+      w: r * (sak ? 2.4 : 2.8) * SZ, h: r * 1.6 * SZ, c: pick1(sak ? SAKURA : LEAVES), on: null, ox: 0, oy: 0, age: 0 });
+  }
+
+  function stepFx(dt) {
+    const tops = [S.win, S.dock];
+    const still = ptr.inside && ptr.mouse && clock - ptr.t > 0.6;
+    const ps = Math.hypot(ptr.vx, ptr.vy);
+
+    if (effect === 1) {                                   // rain: fast slanted streaks, splashes, lightning
+      fxAcc += 30 * 6.5 * dt;
+      while (fxAcc >= 1 && drops.length < 600) {
+        fxAcc -= 1;
+        const vx = -rnd(35, 70) * SP, vy = rnd(650, 900) * SP;
+        drops.push({ x: rnd(0, VW + 80), y: -14, vx, vy, len: rnd(9, 15) * SZ, a: rnd(0.35, 0.6) });
+      }
+      if (fxAcc > 1) fxAcc = 1;
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i], oy = d.y, nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
+        let hit = null;
+        for (const sf of tops) if (oy <= sf.y && ny > sf.y && nx >= sf.x0 && nx <= sf.x1) { hit = sf.y; break; }
+        if (hit === null && ny >= VH - 1) hit = VH - 1;
+        if (hit !== null) {
+          if (splashes.length < 240) for (let q = 0; q < 3; q++) splashes.push({ x: nx, y: hit, dx: rnd(-14, 14) * SP, dy: -rnd(6, 18) * SP, t: 0 });
+          drops.splice(i, 1);
+        } else if (nx < -60) drops.splice(i, 1);
+        else { d.x = nx; d.y = ny; }
+      }
+      for (let i = splashes.length - 1; i >= 0; i--) { splashes[i].t += dt; if (splashes[i].t > 0.28) splashes.splice(i, 1); }
+      if (clock >= nextFlash) { nextFlash = clock + rnd(9, 22); flash = { t: 0 }; }
+      if (flash) { flash.t += dt; if (flash.t > 0.52) flash = null; }
+    }
+
+    else if (effect === 2 || effect === 3) {              // sakura / leaves: drift down and pile up on the window, Dock, floor
+      const sak = effect === 2;
+      fxAcc += 30 * (sak ? 0.4 : 0.35) * dt;
+      while (fxAcc >= 1) { fxAcc -= 1; spawnPetal(sak); }
+      const g = (sak ? 0.35 : 0.45) * 150 * SP, damp = sak ? 1.4 : 1.2, amp = (sak ? 3.4 : 4.2) * 15 * SP, freq = sak ? 1.1 : 1.6;
+      wind += dt;
+      for (const f of petals) {
+        f.age += dt;
+        if (f.on) {
+          if (f.on === 'win') { f.x = S.win.x0 + f.ox; f.y = S.win.y + f.oy; }
+          // the cursor gently stirs them up
+          if (ptr.inside && ptr.mouse && ps > 250 && !grab) {
+            const R = (sak ? 55 : 85) * SP, dx = f.x - ptr.x, dy = f.y - ptr.y, d = Math.hypot(dx, dy);
+            if (d < R) { const kk = 1 - d / R; f.on = null; f.vx = ptr.vx * 0.2 * kk + dx / Math.max(d, 1) * 70 * kk * SP; f.vy = ptr.vy * 0.2 * kk + dy / Math.max(d, 1) * 70 * kk * SP - 20 * kk; f.vr = rnd(-4, 4); }
+          }
+          continue;
+        }
+        f.vy += g * dt;
+        if (f.vy > 12 * SP) f.vx += Math.sin(wind * freq - f.y * 0.015) * amp * dt;
+        f.vx *= Math.max(0, 1 - damp * dt); f.vy *= Math.max(0, 1 - damp * dt);
+        if (ptr.inside && ptr.mouse && ps > 250 && !grab) {
+          const R = (sak ? 55 : 85) * SP, dx = f.x - ptr.x, dy = f.y - ptr.y, d = Math.hypot(dx, dy);
+          if (d < R) { const kk = 1 - d / R; f.vx += ptr.vx * 0.2 * kk * dt * 8 + dx / Math.max(d, 1) * 70 * kk * SP * dt * 8; f.vy += ptr.vy * 0.2 * kk * dt * 8 + dy / Math.max(d, 1) * 70 * kk * SP * dt * 8 - 20 * kk * dt * 8; }
+        }
+        const oy = f.y;
+        f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.vr * dt;
+        for (const sf of [S.win, S.dock, S.floor]) {
+          if (!inX(sf, f.x)) continue;
+          const top = petalTop(sf, f.x);
+          if (f.vy > 0 && oy <= top + 1 && f.y >= top - 0.5) {
+            f.y = top - f.h * 0.3; f.on = sf.name; f.vx = f.vy = 0; f.vr = 0;
+            f.rot = (Math.random() - 0.5) * 0.9 + (Math.random() < 0.5 ? 0 : PI);
+            if (sf === S.win) { f.ox = f.x - S.win.x0; f.oy = f.y - S.win.y; }
+            addPetal(sf, f.x, f.h * 0.35);
+            break;
+          }
+        }
+      }
+      // old ones fade out (the app keeps the newest few hundred)
+      const cap = 320;
+      if (petals.length > cap) petals.splice(0, petals.length - cap);
+      for (let i = petals.length - 1; i >= 0; i--) { const f = petals[i]; if (f.y > VH + 20 || f.x < -60 || f.x > VW + 60) petals.splice(i, 1); }
+      for (const k2 in stack) { const st = stack[k2]; for (let i = 0; i < st.length; i++) st[i] = Math.max(0, st[i] - dt * 0.05); }
+    }
+
+    else if (effect === 4) {                              // fireflies: wander, pulse, circle around a resting cursor
+      while (flies.length < 48) addFly(false);
+      for (const f of flies) {
+        f.wander += rnd(-1, 1) * 4 * dt;
+        let ax = Math.cos(f.wander) * 35 * SP, ay = Math.sin(f.wander) * 35 * SP;
+        if (still) {
+          const dx = ptr.x - f.x, dy = ptr.y - f.y, dist = Math.max(Math.hypot(dx, dy), 1), ux = dx / dist, uy = dy / dist;
+          const radial = clamp(dist - f.orbit, -80 * SP, 260 * SP) * 1.2;
+          ax += ux * radial - uy * 55 * SP; ay += uy * radial + ux * 55 * SP;
+        }
+        f.vx = (f.vx + ax * dt) * Math.max(0, 1 - dt); f.vy = (f.vy + ay * dt) * Math.max(0, 1 - dt);
+        const sp = Math.hypot(f.vx, f.vy), mx = 95 * SP;
+        if (sp > mx) { f.vx *= mx / sp; f.vy *= mx / sp; }
+        f.x += f.vx * dt; f.y += f.vy * dt;
+        if (f.x < 4) { f.x = 4; f.vx = Math.abs(f.vx); } if (f.x > VW - 4) { f.x = VW - 4; f.vx = -Math.abs(f.vx); }
+        if (f.y < 30) { f.y = 30; f.vy = Math.abs(f.vy); } if (f.y > VH - 14) { f.y = VH - 14; f.vy = -Math.abs(f.vy); }
+        f.phase += dt * f.pulse;
+        f.a = Math.min(1, f.a + dt * 2);
+      }
+    }
+
+    else if (effect === 5) {                              // starfall: meteors with a glowing head, sparks where they hit
+      if (clock >= nextMeteor && meteors.length < 12) {
+        nextMeteor = clock + rnd(0.6, 2.2);
+        const ang = rnd(0.6, 1.0), sp = rnd(800, 1200) * SP, dir = Math.random() < 0.5 ? 1 : -1;
+        meteors.push({ x: dir < 0 ? rnd(VW * 0.3, VW + 150) : rnd(-150, VW * 0.7), y: -20, vx: dir * Math.cos(ang) * sp, vy: Math.sin(ang) * sp, len: rnd(110, 190) * SZ });
+      }
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i], oy = m.y, nx = m.x + m.vx * dt, ny = m.y + m.vy * dt;
+        let hit = null;
+        for (const sf of tops) if (oy <= sf.y && ny > sf.y && nx >= sf.x0 && nx <= sf.x1) { hit = sf.y; break; }
+        if (hit === null && ny >= VH - 1) hit = VH - 1;
+        if (hit !== null) {
+          for (let q = 0; q < 14; q++) { const a = rnd(0.15, 2.99), v = rnd(60, 220) * SP; sparks.push({ x: nx, y: hit, dx: Math.cos(a) * v * 0.5, dy: -(Math.sin(a) * v * 0.5 - 20 * SP), t: 0, c: pick1(['#FFD980', '#FF9A4D', '#FFFFFF']) }); }
+          meteors.splice(i, 1);
+        } else if (nx < -260 || nx > VW + 260) meteors.splice(i, 1);
+        else { m.x = nx; m.y = ny; }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) { sparks[i].t += dt; if (sparks[i].t > 0.55) sparks.splice(i, 1); }
+    }
+  }
+
+  function fxShake() {
+    for (const f of petals) if (f.on === 'win' || f.on === 'dock') { f.on = null; f.vx = rnd(-90, 90) * SP; f.vy = -rnd(160, 260) * SP; f.vr = rnd(-6, 6); }
+    stackOf('win').fill(0); stackOf('dock').fill(0);
+  }
+  function fxClear() { petals.length = 0; for (const k2 in stack) stack[k2].fill(0); }
+
+  function drawFx() {
+    if (effect === 1) {
+      ctx.strokeStyle = rgb(0.75, 0.86, 1); ctx.lineCap = 'round'; ctx.lineWidth = 1.2 * SZ;
+      for (const d of drops) {
+        const v = Math.hypot(d.vx, d.vy);
+        ctx.globalAlpha = d.a; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.vx / v * d.len, d.y - d.vy / v * d.len); ctx.stroke();
+      }
+      ctx.fillStyle = rgb(0.8, 0.9, 1);
+      for (const s2 of splashes) { const u = s2.t / 0.28; ctx.globalAlpha = 0.8 * (1 - u); ctx.beginPath(); ctx.arc(s2.x + s2.dx * u, s2.y + s2.dy * u, 1, 0, 2 * PI); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      if (flash) {
+        const t = flash.t, a = t < 0.04 ? 0.22 * t / 0.04 : t < 0.12 ? lerp(0.22, 0.05, (t - 0.04) / 0.08) : t < 0.17 ? lerp(0.05, 0.18, (t - 0.12) / 0.05) : lerp(0.18, 0, (t - 0.17) / 0.35);
+        ctx.fillStyle = `rgba(217,230,255,${Math.max(0, a)})`; ctx.fillRect(0, 0, VW, VH + 2);
+      }
+    } else if (effect === 2 || effect === 3) {
+      const sak = effect === 2;
+      for (const f of petals) {
+        ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.fillStyle = f.c;
+        const w = f.w, h = f.h;
+        ctx.beginPath();
+        if (sak) ctx.ellipse(0, 0, w / 2 - 0.3, h / 2 - 0.3, 0, 0, 2 * PI);
+        else { ctx.moveTo(-w / 2, 0); ctx.bezierCurveTo(-w * 0.2, -h / 2, w * 0.2, -h / 2, w / 2, 0); ctx.bezierCurveTo(w * 0.2, h / 2, -w * 0.2, h / 2, -w / 2, 0); }
+        ctx.fill(); ctx.restore();
+      }
+    } else if (effect === 4) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const f of flies) {
+        const al = f.a * (0.25 + 0.75 * (0.5 + 0.5 * Math.sin(f.phase))), r = f.size / 2;
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+        g.addColorStop(0, `rgba(217,255,115,${al})`); g.addColorStop(1, 'rgba(217,255,115,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 2 * PI); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (effect === 5) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const m of meteors) {
+        const v = Math.hypot(m.vx, m.vy), tx = m.x - m.vx / v * m.len, ty = m.y - m.vy / v * m.len;
+        const g = ctx.createLinearGradient(tx, ty, m.x, m.y);
+        g.addColorStop(0, 'rgba(217,235,255,0)'); g.addColorStop(1, 'rgba(217,235,255,1)');
+        ctx.strokeStyle = g; ctx.lineWidth = 3 * SZ; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(m.x, m.y); ctx.stroke();
+        const hg = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 8 * SZ);
+        hg.addColorStop(0, 'rgba(255,255,255,1)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(m.x, m.y, 8 * SZ, 0, 2 * PI); ctx.fill();
+      }
+      for (const s2 of sparks) {
+        const u = s2.t / 0.55, e = 1 - (1 - u) * (1 - u);
+        ctx.globalAlpha = 1 - u; ctx.fillStyle = s2.c; ctx.beginPath(); ctx.arc(s2.x + s2.dx * e, s2.y + s2.dy * e, 1.5 * (1 - 0.7 * u), 0, 2 * PI); ctx.fill();
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+  document.querySelectorAll('[data-fx]').forEach(el => el.addEventListener('click', e => {
+    e.preventDefault(); touched(); wake(true);
+    setEffect(+el.dataset.fx);
+    el.classList.add('is-hit'); setTimeout(() => el.classList.remove('is-hit'), 260);
+  }));
+  // preload the panel pictures so switching does not blink
+  for (let i = 0; i < 6; i++) { const im = new Image(); im.src = `assets/img/fx/panel-${i}.png`; }
 
   // ---------- simulation step ----------
   let prevWin = null, winV = { x: 0, y: 0 };
@@ -554,6 +814,8 @@
       const jerk = Math.hypot(nv.x - winV.x, nv.y - winV.y);
       const riders = balls.concat(men).filter(o => o.on === 'win' && !o.stuck && !(grab && grab.obj === o));
       for (const o of riders) { o.x += dx; o.y += dy; }
+      if (effect !== 0 && jerk > 210) for (const f of petals) if (f.on === 'win') { f.on = null; f.vx = winV.x * 0.8; f.vy = Math.min(winV.y * 0.8, 0) - 40; f.vr = rnd(-6, 6); }
+      if (effect !== 0 && jerk > 210) stackOf('win').fill(0);
       if (jerk > 210) {
         const f = clamp((jerk - 170) / 420, 0.12, 1);
         launch(S.win, f, winV.x * 0.85, Math.min(winV.y * 0.85, 0) - 40 * f, 60 + 60 * f);
@@ -566,7 +828,7 @@
     // pointer speed; sweeping the snow with the cursor
     ptr.vx = (ptr.x - ptr.px) / dt; ptr.vy = (ptr.y - ptr.py) / dt;
     const sp = Math.hypot(ptr.vx, ptr.vy);
-    if (!grab && ptr.inside && ptr.mouse && sp > 160 && sp < 6000) {
+    if (effect === 0 && !grab && ptr.inside && ptr.mouse && sp > 160 && sp < 6000) {
       for (const s of ORDER) {
         if (!inX(s, ptr.x)) continue;
         const h = hAt(s, ptr.x);
@@ -582,6 +844,7 @@
   }
   function step(dt) {
     clock += dt;
+    if (effect !== 0) { stepFx(dt); return; }
     // falling snow
     for (const f of flakes) {
       f.y += f.vy * dt; f.sw += dt * 0.8; f.x += Math.sin(f.sw) * 14 * dt;
@@ -896,6 +1159,7 @@
   function draw() {
     ctx.setTransform(k * dpr, 0, 0, k * dpr, 0, 0);
     ctx.clearRect(0, 0, VW, VH + 2);
+    if (effect !== 0) { drawFx(); return; }
     ctx.fillStyle = '#fff';
     for (const f of flakes) { ctx.globalAlpha = f.a; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 2 * PI); ctx.fill(); }
     ctx.globalAlpha = 1;
@@ -917,7 +1181,7 @@
   // on touch screens there is no cursor and no right click
   if (window.matchMedia('(hover: none)').matches) {
     const hint = document.querySelector('.play__hint');
-    if (hint) hint.innerHTML = '<b>This desktop is live — play with it.</b> Drag the window and flick it. Touch the snow and drag to roll a snowball — stack three and you get a snowman. Double-tap to smash.';
+    if (hint) hint.innerHTML = '<b>This desktop is live — play with it.</b> Switch effects in the Glimmer panel. Drag the window and flick it. Touch the snow and drag to roll a snowball — stack three and you get a snowman. Double-tap to smash.';
   }
 
   // ---------- layout, loop ----------
@@ -963,7 +1227,7 @@
       for (let i = 0; i < sub; i++) step(dt / sub);
       seen += dt;
       // nobody is playing — show the helpers on our own, once each
-      if (!busy() && clock - lastTouch > 6) {
+      if (effect === 0 && !busy() && clock - lastTouch > 6) {
         if (!auto.gnomes && seen > 5) { auto.gnomes = true; act('gnomes'); }
         else if (auto.gnomes && !auto.plough && clock - helperEnd > 9 && clock - lastTouch > 9) { auto.plough = true; act('plough'); }
       }
@@ -983,10 +1247,11 @@
   // local testing only: http://localhost…/?demo=gnomes&ff=12 runs an action and fast-forwards the simulation
   if (['localhost', '127.0.0.1'].includes(location.hostname)) {
     const ff = sec => { for (let i = 0; i < sec * 60; i++) { frameStart(1 / 60); step(1 / 60); } draw(); };
-    window.__desk = { act, ff, S, balls, men, grains, ptr, get crew() { return crew; }, get plough() { return plough; }, set grab(g) { grab = g; }, pick, release, hitAt };
+    window.__desk = { act, ff, setEffect, get effect() { return effect; }, petals, flies, drops, meteors, S, balls, men, grains, ptr, get crew() { return crew; }, get plough() { return plough; }, set grab(g) { grab = g; }, pick, release, hitAt };
     const q = new URLSearchParams(location.search);
     if (q.get('demo') || q.get('ff')) {
       auto.gnomes = auto.plough = true; calm = true;
+      if (q.get('fx')) setEffect(+q.get('fx'));
       (q.get('demo') || '').split(',').filter(Boolean).forEach(d => act(d));
       ff(parseFloat(q.get('pre') || '0'));
       (q.get('then') || '').split(',').filter(Boolean).forEach(d => act(d));

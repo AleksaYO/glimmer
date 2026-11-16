@@ -67,7 +67,7 @@
       <!-- Desktop mockup -->
       <div class="wrap">
         <div class="mac" role="group" aria-label="A live demo of Glimmer: snow piles on a window and the Dock. Drag the window, roll snowballs, call the gnomes and the snowplow.">
-          <div class="mac__screen">
+          <div class="mac__screen is-snow">
             <img class="mac__wall" src="assets/img/wall-snow.jpg" alt="" loading="eager">
             <div class="mac__menubar">
               <span class="mac__apple"></span><b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span>
@@ -85,7 +85,13 @@
             </div>
 
             <div class="mac__panel">
-              <img src="assets/img/menu-effects.png" alt="">
+              <img src="assets/img/fx/panel-0.png" alt="">
+              <button class="mac__act" type="button" data-fx="0" style="left:7.3%;top:19.8%;width:41.5%;height:9.6%" aria-label="Snow"></button>
+              <button class="mac__act" type="button" data-fx="1" style="left:51.2%;top:19.8%;width:41.5%;height:9.6%" aria-label="Rain"></button>
+              <button class="mac__act" type="button" data-fx="2" style="left:7.3%;top:31.05%;width:41.5%;height:9.6%" aria-label="Sakura"></button>
+              <button class="mac__act" type="button" data-fx="3" style="left:51.2%;top:31.05%;width:41.5%;height:9.6%" aria-label="Leaves"></button>
+              <button class="mac__act" type="button" data-fx="4" style="left:7.3%;top:42.3%;width:41.5%;height:9.6%" aria-label="Fireflies"></button>
+              <button class="mac__act" type="button" data-fx="5" style="left:51.2%;top:42.3%;width:41.5%;height:9.6%" aria-label="Starfall"></button>
               <button class="mac__act" type="button" data-act="plough" style="left:7.3%;top:59.8%;width:41.5%;height:11.3%" aria-label="Call the Snowplow"></button>
               <button class="mac__act" type="button" data-act="gnomes" style="left:51.2%;top:59.8%;width:41.5%;height:11.3%" aria-label="Call the Gnomes"></button>
               <button class="mac__act" type="button" data-act="shake" style="left:7.3%;top:72.9%;width:41.5%;height:11.3%" aria-label="Shake Off Snow"></button>
@@ -103,7 +109,7 @@
         </div>
 
         <div class="play">
-          <p class="play__hint"><b>This desktop is live — play with it.</b> Drag the window and flick it. Sweep the snow with your cursor. Grab a handful and roll it into a snowball — stack three and you get a snowman. Right-click to smash.</p>
+          <p class="play__hint"><b>This desktop is live — play with it.</b> Switch effects in the Glimmer panel. Drag the window and flick it. Sweep the snow with your cursor. Grab a handful and roll it into a snowball — stack three and you get a snowman. Right-click to smash.</p>
           <div class="play__btns">
             <button type="button" class="chip" data-act="gnomes">🎅 Call the gnomes</button>
             <button type="button" class="chip" data-act="plough">🚜 Call the snowplow</button>

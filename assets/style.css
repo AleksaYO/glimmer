@@ -140,6 +140,7 @@ img, video { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: 
 .mac__act { position: absolute; padding: 0; border: 0; border-radius: 1cqw; background: transparent; cursor: pointer; transition: background .15s, box-shadow .15s; }
 .mac__act:hover, .mac__act:focus-visible { background: rgba(158, 209, 255, .16); box-shadow: inset 0 0 0 1px rgba(158, 209, 255, .55); outline: none; }
 .mac__act.is-hit { background: rgba(158, 209, 255, .38); }
+.mac__screen:not(.is-snow) .mac__act[data-act="gnomes"], .mac__screen:not(.is-snow) .mac__act[data-act="plough"] { cursor: default; background: transparent; box-shadow: none; }
 .mac__screen { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .mac__window { cursor: grab; }
 
