@@ -66,7 +66,7 @@
 
       <!-- Desktop mockup -->
       <div class="wrap">
-        <div class="mac" role="img" aria-label="Glimmer running on a Mac: snow piles on a window and the Dock, the Glimmer menu panel is open">
+        <div class="mac" role="group" aria-label="A live demo of Glimmer: snow piles on a window and the Dock. Drag the window, roll snowballs, call the gnomes and the snowplow.">
           <div class="mac__screen">
             <img class="mac__wall" src="assets/img/wall-snow.jpg" alt="" loading="eager">
             <div class="mac__menubar">
@@ -76,7 +76,7 @@
               <span>Sat 9:41</span>
             </div>
 
-            <div class="mac__window" data-snowcap="1.0">
+            <div class="mac__window">
               <div class="mac__titlebar"><i></i><i></i><i></i><span>Winter plans</span></div>
               <div class="mac__doc">
                 <h3>Winter plans</h3>
@@ -84,10 +84,15 @@
               </div>
             </div>
 
-            <img class="mac__panel" src="assets/img/menu-effects.png" alt="">
+            <div class="mac__panel">
+              <img src="assets/img/menu-effects.png" alt="">
+              <button class="mac__act" type="button" data-act="plough" style="left:7.3%;top:59.8%;width:41.5%;height:11.3%" aria-label="Call the Snowplow"></button>
+              <button class="mac__act" type="button" data-act="gnomes" style="left:51.2%;top:59.8%;width:41.5%;height:11.3%" aria-label="Call the Gnomes"></button>
+              <button class="mac__act" type="button" data-act="shake" style="left:7.3%;top:72.9%;width:41.5%;height:11.3%" aria-label="Shake Off Snow"></button>
+              <button class="mac__act" type="button" data-act="clear" style="left:51.2%;top:72.9%;width:41.5%;height:11.3%" aria-label="Clear"></button>
+            </div>
 
-            <div class="mac__floor"></div>
-            <div class="mac__dock" data-snowcap="1.25">
+            <div class="mac__dock">
               <i style="--c:#3D9BFF"></i><i style="--c:#FFC53D"></i><i style="--c:#34C759"></i><i style="--c:#FF4D6D"></i><i style="--c:#A15CFF"></i>
               <img src="assets/img/icon-512.png" alt=""><i style="--c:#5AC8FA"></i><i style="--c:#E5E5EA"></i><i style="--c:#FF8A3D"></i>
             </div>
@@ -95,6 +100,16 @@
           </div>
           <div class="mac__chin"></div>
           <div class="mac__stand"></div>
+        </div>
+
+        <div class="play">
+          <p class="play__hint"><b>This desktop is live — play with it.</b> Drag the window and flick it. Sweep the snow with your cursor. Grab a handful and roll it into a snowball — stack three and you get a snowman. Right-click to smash.</p>
+          <div class="play__btns">
+            <button type="button" class="chip" data-act="gnomes">🎅 Call the gnomes</button>
+            <button type="button" class="chip" data-act="plough">🚜 Call the snowplow</button>
+            <button type="button" class="chip" data-act="snowman">⛄ Build a snowman</button>
+            <button type="button" class="chip" data-act="shake">❄️ Shake off the snow</button>
+          </div>
         </div>
       </div>
     </section>
@@ -288,5 +303,6 @@
   </footer>
 
   <script src="assets/main.js" defer></script>
+  <script src="assets/desk.js" defer></script>
 </body>
 </html>

@@ -132,6 +132,4 @@
 
   const page = document.getElementById('sky-snow');
   if (page) snowfall(page, { area: 9000, max: 160, size: [0.6, 2.2], speed: [0.25, 0.9] });
-  const mock = document.querySelector('.mac__snow');
-  if (mock) snowfall(mock, { area: 2600, max: 260, size: [0.6, 2.4], speed: [0.35, 1.2] });
 })();
