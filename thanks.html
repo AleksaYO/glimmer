@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Your Glimmer Code</title>
+  <meta name="theme-color" content="#0A1230">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/checkout.css">
+</head>
+<body>
+  <canvas id="sky-snow" aria-hidden="true"></canvas>
+  <header class="nav">
+    <div class="wrap nav__inner">
+      <a class="logo" href="./" aria-label="Glimmer home"><img src="assets/img/icon-512.png" alt="" width="32" height="32"><span>Glimmer</span></a>
+    </div>
+  </header>
+
+  <main class="checkout wrap">
+    <div class="checkout__head">
+      <img class="checkout__icon" src="assets/img/icon-512.png" alt="" width="88" height="88">
+      <h1 id="title">Thank you!</h1>
+      <p id="subtitle">Checking your payment…</p>
+    </div>
+
+    <!-- waiting -->
+    <section class="panel" id="s-pending" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <p><strong>Waiting for the blockchain to confirm your payment.</strong></p>
+      <p class="muted">This usually takes 1–3 minutes. Keep this page open — your code will appear here automatically.</p>
+    </section>
+
+    <!-- code ready -->
+    <section class="panel panel--ok" id="s-ready" hidden>
+      <p class="muted">Your activation code</p>
+      <div class="code" id="code">XXXX-XXXX-XXXX-XXXX</div>
+      <button class="btn btn--ice btn--lg" id="copy" type="button">Copy code</button>
+      <p class="warn"><strong>Save this code</strong> — write it down or keep it in your notes. You can use it again if you reinstall Glimmer.</p>
+      <ol class="steps">
+        <li>Open Glimmer — the “Activate Glimmer” window appears.</li>
+        <li>Paste the code into the code field.</li>
+        <li>Click “Activate”. Enjoy the snow!</li>
+      </ol>
+      <p class="muted">Don’t have Glimmer yet? <a href="./#pricing">Download it here</a>.</p>
+    </section>
+
+    <!-- underpaid / other -->
+    <section class="panel panel--warn" id="s-problem" hidden>
+      <p><strong id="problem-title">The payment was not completed.</strong></p>
+      <p class="muted" id="problem-text"></p>
+      <p>Write to <a href="mailto:glimmer.app.support@gmail.com?subject=Glimmer%20USDT%20payment" id="support-link">glimmer.app.support@gmail.com</a> and include your payment ID — we’ll sort it out.</p>
+    </section>
+
+    <!-- no order info: let the buyer enter the payment ID -->
+    <section class="panel" id="s-lookup" hidden>
+      <p><strong>Paid with USDT but don’t see your code?</strong></p>
+      <p class="muted">Enter the <b>Payment ID</b> from the NOWPayments payment page (a number like 5007865113).</p>
+      <form id="lookup" class="lookup">
+        <input id="pid" inputmode="numeric" autocomplete="off" placeholder="Payment ID" aria-label="Payment ID">
+        <button class="btn btn--ice" type="submit">Get my code</button>
+      </form>
+      <p class="muted" id="lookup-msg"></p>
+    </section>
+
+    <p class="checkout__help">Need help? <a href="mailto:glimmer.app.support@gmail.com">glimmer.app.support@gmail.com</a></p>
+  </main>
+
+  <script src="assets/main.js" defer></script>
+  <script>
+  (function () {
+    const API = 'https://glimmer-pay.glimmer-app.workers.dev/claim';
+    const q = new URLSearchParams(location.search);
+    const token = (q.get('t') || '').trim();
+    let pid = (q.get('NP_id') || q.get('p') || '').trim();
+    const $ = id => document.getElementById(id);
+    const show = id => ['s-pending', 's-ready', 's-problem', 's-lookup'].forEach(s => $(s).hidden = s !== id);
+    const remember = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+    const recall = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+
+    let tries = 0, timer = null;
+
+    function ready(code) {
+      $('code').textContent = code;
+      $('title').textContent = 'You’re all set!';
+      $('subtitle').textContent = 'Payment confirmed. Here is your Glimmer activation code.';
+      show('s-ready');
+      if (token) remember('glimmer-code-' + token, code);
+    }
+
+    function problem(title, text) {
+      $('problem-title').textContent = title;
+      $('problem-text').textContent = text;
+      if (pid) $('support-link').href += encodeURIComponent(' — payment ' + pid);
+      $('subtitle').textContent = '';
+      show('s-problem');
+    }
+
+    async function check() {
+      const params = new URLSearchParams();
+      if (token) params.set('t', token);
+      if (pid) params.set('p', pid);
+      let r;
+      try { r = await (await fetch(API + '?' + params, { cache: 'no-store' })).json(); }
+      catch (e) { r = { status: 'network' }; }
+
+      if (r.status === 'ready') return ready(r.code);
+      if (r.status === 'partial') return problem('The payment arrived only partially.',
+        'Less USDT was received than required — usually because an exchange deducted its withdrawal fee from the amount.');
+      if (r.status === 'sold_out') return problem('We couldn’t issue a code automatically.', 'Your payment is confirmed. Please contact us and we’ll send your code by email.');
+      if (['expired', 'failed', 'refunded'].includes(r.status)) return problem('The payment was not completed.', 'The payment expired or failed. If you sent USDT anyway, contact us with your payment ID.');
+      if (r.status === 'unknown' && !token) { show('s-lookup'); $('subtitle').textContent = ''; return; }
+
+      // waiting / confirming / network hiccup — keep polling (up to ~45 minutes)
+      show('s-pending');
+      $('subtitle').textContent = 'Checking your payment…';
+      if (++tries < 270) timer = setTimeout(check, tries < 30 ? 6000 : 12000);
+      else problem('Still waiting for confirmation.', 'The blockchain is taking longer than usual. Reload this page later, or contact us with your payment ID.');
+    }
+
+    $('copy').addEventListener('click', async () => {
+      const code = $('code').textContent;
+      try { await navigator.clipboard.writeText(code); $('copy').textContent = 'Copied ✓'; }
+      catch (e) { const s = getSelection(), rng = document.createRange(); rng.selectNodeContents($('code')); s.removeAllRanges(); s.addRange(rng); }
+      setTimeout(() => $('copy').textContent = 'Copy code', 2000);
+    });
+
+    $('lookup').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = $('pid').value.replace(/\D/g, '');
+      if (v.length < 5) { $('lookup-msg').textContent = 'Please enter the numeric Payment ID.'; return; }
+      pid = v; tries = 0; clearTimeout(timer);
+      $('lookup-msg').textContent = 'Checking…';
+      check();
+    });
+
+    const saved = token && recall('glimmer-code-' + token);
+    if (saved) ready(saved);
+    else if (!token && !pid) { show('s-lookup'); $('title').textContent = 'Get your code'; $('subtitle').textContent = ''; }
+    else check();
+  })();
+  </script>
+</body>
+</html>

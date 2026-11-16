@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Buy Glimmer</title>
+  <meta name="description" content="Buy a lifetime Glimmer license — one-time purchase, your activation code arrives right after payment.">
+  <meta name="theme-color" content="#0A1230">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/checkout.css">
+</head>
+<body>
+  <canvas id="sky-snow" aria-hidden="true"></canvas>
+  <header class="nav">
+    <div class="wrap nav__inner">
+      <a class="logo" href="./" aria-label="Glimmer home"><img src="assets/img/icon-512.png" alt="" width="32" height="32"><span>Glimmer</span></a>
+    </div>
+  </header>
+
+  <main class="checkout wrap">
+    <div class="checkout__head">
+      <img class="checkout__icon" src="assets/img/icon-512.png" alt="" width="88" height="88">
+      <h1>Buy Glimmer</h1>
+      <p>One-time purchase · lifetime license · all effects and wallpapers</p>
+    </div>
+
+    <div class="options">
+      <a class="option" href="https://glimmer-pay.glimmer-app.workers.dev/buy" rel="nofollow">
+        <span class="option__badge">Available now</span>
+        <span class="option__title">Pay with USDT</span>
+        <span class="option__price"><span id="usdt-price">≈ 11</span> USDT <small>TRC-20 (Tron)</small></span>
+        <span class="option__text">Includes the Tron network minimum, so the amount may change slightly. Your activation code appears on screen right after the payment is confirmed — usually 1–3 minutes.</span>
+        <span class="btn btn--ice btn--lg btn--block">Continue to payment</span>
+      </a>
+
+      <div class="option option--soon" aria-disabled="true">
+        <span class="option__badge option__badge--muted">Coming soon</span>
+        <span class="option__title">Card / PayPal / Apple Pay</span>
+        <span class="option__price">$10</span>
+        <span class="option__text">Card payments are being set up. Check back soon.</span>
+        <span class="btn btn--ghost btn--lg btn--block btn--soon">Coming soon</span>
+      </div>
+    </div>
+
+    <div class="notice">
+      <strong>Paying from an exchange?</strong>
+      Send the <b>exact amount</b> shown on the payment page over the <b>TRC-20 (Tron)</b> network.
+      Exchanges deduct their withdrawal fee — add it on top so the full amount arrives.
+      Keep the payment page open until it says the payment is complete.
+    </div>
+
+    <p class="checkout__help">Questions or problems? <a href="mailto:glimmer.app.support@gmail.com">glimmer.app.support@gmail.com</a></p>
+  </main>
+
+  <script src="assets/main.js" defer></script>
+  <script>
+    // текущая цена в USDT (зависит от минимума сети Tron у NOWPayments)
+    fetch('https://glimmer-pay.glimmer-app.workers.dev/min', { cache: 'no-store' })
+      .then(r => r.json()).then(d => { if (d.price) document.getElementById('usdt-price').textContent = d.price.toFixed(2); })
+      .catch(() => {});
+  </script>
+</body>
+</html>
