@@ -17,6 +17,7 @@ a.option:hover { border-color: rgba(158, 209, 255, .45); background: rgba(255,25
 .option__title { font-size: 21px; font-weight: 700; }
 .option__price { font-size: 28px; font-weight: 800; }
 .option__price small { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.option__fee { margin-top: -6px; font-size: 13.5px; font-weight: 600; color: #FFCC61; }
 .option__text { color: var(--muted); font-size: 15px; flex: 1; }
 .option .btn { margin-top: 6px; }
 

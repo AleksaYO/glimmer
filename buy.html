@@ -33,8 +33,9 @@
       <a class="option" href="https://glimmer-pay.glimmer-app.workers.dev/buy" rel="nofollow">
         <span class="option__badge">Available now</span>
         <span class="option__title">Pay with USDT</span>
-        <span class="option__price"><span id="usdt-price">≈ 11</span> USDT <small>TRC-20 (Tron)</small></span>
-        <span class="option__text">Includes the Tron network minimum, so the amount may change slightly. Your activation code appears on screen right after the payment is confirmed — usually 1–3 minutes.</span>
+        <span class="option__price">10 USDT <small>TRC-20 (Tron)</small></span>
+        <span class="option__fee" id="usdt-fee">+ Tron network fee, shown on the payment page</span>
+        <span class="option__text">The price is 10 USDT. The Tron network sets a minimum payment, so a small network fee is added on top — it goes to the network, not to us. Your activation code appears on screen right after the payment is confirmed — usually 1–3 minutes.</span>
         <span class="btn btn--ice btn--lg btn--block">Continue to payment</span>
       </a>
 
@@ -61,7 +62,7 @@
   <script>
     // текущая цена в USDT (зависит от минимума сети Tron у NOWPayments)
     fetch('https://glimmer-pay.glimmer-app.workers.dev/min', { cache: 'no-store' })
-      .then(r => r.json()).then(d => { if (d.price) document.getElementById('usdt-price').textContent = d.price.toFixed(2); })
+      .then(r => r.json()).then(d => { const fee = d.price - 10; if (fee > 0.005) document.getElementById('usdt-fee').textContent = `+ ${fee.toFixed(2)} USDT Tron network fee`; })
       .catch(() => {});
   </script>
 </body>
