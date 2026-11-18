@@ -43,3 +43,12 @@ a.option:hover { border-color: rgba(158, 209, 255, .45); background: rgba(255,25
   .lookup { flex-direction: column; }
   .panel { padding: 22px 16px; }
 }
+
+/* terms / privacy / refund */
+.legal { max-width: 760px; min-height: calc(100vh - 150px); }
+.legal h1 { font-size: clamp(30px, 5vw, 40px); margin: 0 0 6px; }
+.legal__date { color: var(--dim); font-size: 14px; margin: 0 0 28px; }
+.legal h2 { font-size: 20px; margin: 30px 0 10px; }
+.legal p, .legal li { color: rgba(238, 244, 255, .82); font-size: 16px; line-height: 1.65; }
+.legal ul { padding-left: 22px; }
+.legal a { color: var(--ice); }
