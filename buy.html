@@ -39,12 +39,12 @@
         <span class="btn btn--ice btn--lg btn--block">Continue to payment</span>
       </a>
 
-      <div class="option option--soon" aria-disabled="true">
-        <span class="option__badge option__badge--muted">Coming soon</span>
+      <div class="option option--soon" id="card-option" aria-disabled="true">
+        <span class="option__badge option__badge--muted" id="card-badge">Coming soon</span>
         <span class="option__title">Card / PayPal / Apple Pay</span>
         <span class="option__price">$10</span>
-        <span class="option__text">Card payments are being set up. Check back soon.</span>
-        <span class="btn btn--ghost btn--lg btn--block btn--soon">Coming soon</span>
+        <span class="option__text" id="card-text">Card payments are being set up. Check back soon.</span>
+        <span class="btn btn--ghost btn--lg btn--block btn--soon" id="card-btn">Coming soon</span>
       </div>
     </div>
 
@@ -60,5 +60,38 @@
   </main>
 
   <script src="assets/main.js" defer></script>
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script>
+  // Card / PayPal / Apple Pay через Paddle: окно оплаты поверх страницы, после оплаты — thanks.html с кодом.
+  // Пока PADDLE_PRICE пустой, вариант остаётся «Coming soon».
+  (function () {
+    const PADDLE_TOKEN = 'live_e61cd0f944f30fe17241dd42fb3';
+    const PADDLE_PRICE = 'pri_01m7r6mc02vxbh11fkssy6x6kq';                       // pri_… цены Glimmer $10
+    if (!PADDLE_PRICE || !window.Paddle) return;
+    const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+    let order = null;
+    Paddle.Initialize({
+      token: PADDLE_TOKEN,
+      eventCallback: e => {
+        if (e.name === 'checkout.completed' && e.data && e.data.transaction_id && order)
+          location.href = `thanks.html?tx=${encodeURIComponent(e.data.transaction_id)}&t=${order}`;
+      }
+    });
+    const opt = document.getElementById('card-option'), btn = document.getElementById('card-btn');
+    opt.classList.remove('option--soon'); opt.removeAttribute('aria-disabled'); opt.style.cursor = 'pointer';
+    document.getElementById('card-badge').className = 'option__badge';
+    document.getElementById('card-badge').textContent = 'Available now';
+    document.getElementById('card-text').textContent = 'Pay with a card, PayPal, Apple Pay or Google Pay. Your activation code appears on screen right after payment.';
+    btn.className = 'btn btn--ice btn--lg btn--block'; btn.textContent = 'Continue to payment';
+    opt.addEventListener('click', () => {
+      order = rnd();
+      Paddle.Checkout.open({
+        items: [{ priceId: PADDLE_PRICE, quantity: 1 }],
+        customData: { glimmer: order },
+        settings: { displayMode: 'overlay', theme: 'dark', locale: 'en' }
+      });
+    });
+  })();
+  </script>
 </body>
 </html>
