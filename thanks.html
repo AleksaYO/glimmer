@@ -78,6 +78,12 @@
     const q = new URLSearchParams(location.search);
     const token = (q.get('t') || '').trim();
     let pid = (q.get('NP_id') || q.get('p') || '').trim();
+    const tx = (q.get('tx') || '').trim();              // оплата картой через Paddle
+    if (tx) {                                            // карта: подтверждение за секунды, без блокчейна
+      const pend = document.querySelector('#s-pending');
+      pend.querySelector('strong').textContent = 'Confirming your payment…';
+      pend.querySelector('.muted').textContent = 'This usually takes a few seconds. Keep this page open — your code will appear here automatically.';
+    }
     const $ = id => document.getElementById(id);
     const show = id => ['s-pending', 's-ready', 's-problem', 's-lookup'].forEach(s => $(s).hidden = s !== id);
     const remember = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
@@ -106,7 +112,9 @@
       if (token) params.set('t', token);
       if (pid) params.set('p', pid);
       let r;
-      try { r = await (await fetch(API + '?' + params, { cache: 'no-store' })).json(); }
+      if (tx) params.set('tx', tx);
+      const url = tx ? API.replace('/claim', '/paddle') : API;
+      try { r = await (await fetch(url + '?' + params, { cache: 'no-store' })).json(); }
       catch (e) { r = { status: 'network' }; }
 
       if (r.status === 'ready') return ready(r.code);
